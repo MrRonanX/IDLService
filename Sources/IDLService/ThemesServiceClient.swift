@@ -14,7 +14,7 @@ public final class ThemesServiceClient {
     public typealias ListThemesResponseResult = Result<Chesscom_Themes_V1alpha_ListThemesResponse, TwirpError>
 
     private var requestConstructor: RequestConstructor
-    private weak var client: APIService?
+    private var client: APIService
 
     public init(baseURL: String, client: APIService = APIClient()) {
         self.requestConstructor = RequestConstructor(url: baseURL, router: .themes)
@@ -44,7 +44,7 @@ public final class ThemesServiceClient {
             return
         }
 
-        client?.retriableClient(with: retryTimes).request(with: request) { [weak self] result in
+        client.retriableClient(with: retryTimes).request(with: request) { [weak self] result in
             guard self != nil else { return }
             
             switch result {
