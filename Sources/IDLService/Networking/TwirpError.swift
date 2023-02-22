@@ -7,7 +7,7 @@
 
 import Foundation
 
-public enum TwirpError: Error, Equatable {
+public enum TwirpError: Error {
     case invalidURL(String?)
     case invalidURLRequest
     case invalidHTTPResponse
@@ -17,4 +17,5 @@ public enum TwirpError: Error, Equatable {
     case noData
     case decodingError
     case offline
+    case dataTaskError(Error)
 }

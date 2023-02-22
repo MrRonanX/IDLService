@@ -11,6 +11,7 @@ struct RequestConstructor {
 
     private let baseURL: String
     private let router: APIRouter
+
     init(url: String, router: APIRouter) {
         baseURL = url
         self.router = router

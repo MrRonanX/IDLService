@@ -16,7 +16,11 @@ public final class ThemesServiceClient {
     private var requestConstructor: RequestConstructor
     private var client: APIService
 
-    public init(baseURL: String, client: APIService = APIClient()) {
+    convenience public init(baseURLString: String) {
+        self.init(baseURL: baseURLString)
+    }
+
+    init(baseURL: String, client: APIService = APIClient()) {
         self.requestConstructor = RequestConstructor(url: baseURL, router: .themes)
         self.client = client
     }
@@ -27,6 +31,7 @@ public final class ThemesServiceClient {
         headers: [String: String] = [:],
         completion: @escaping (ListThemesResponseResult) -> Void
     ) {
+
         let endpoint = "ListThemes"
 
         guard NetworkMonitor.shared.networkStatus == .online else {
@@ -44,9 +49,9 @@ public final class ThemesServiceClient {
             return
         }
 
-        client.retriableClient(with: retryTimes).request(with: request) { [weak self] result in
+        client.request(with: request, maxRetries: retryTimes, retryDelay: 0) { [weak self] result in
             guard self != nil else { return }
-            
+
             switch result {
             case .success((let data, let response)):
                 APIClientMapper.map(data, from: response, completion: completion)
@@ -54,7 +59,7 @@ public final class ThemesServiceClient {
                 completion(.failure(error))
             }
         }
-
-        // TODO: func ListThemesJson(
     }
+
+    // TODO: func ListThemesJson(
 }

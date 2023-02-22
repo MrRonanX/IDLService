@@ -8,96 +8,82 @@
 import Foundation
 import SwiftProtobuf
 
-public protocol APIService {
+protocol APIService {
 
-    func request(with request: URLRequest, completion: @escaping (Result<(Data, HTTPURLResponse), TwirpError>) -> Void)
+    func request(
+        with request: URLRequest,
+        maxRetries: UInt,
+        retryDelay: TimeInterval,
+        completion: @escaping (Result<(Data, HTTPURLResponse), TwirpError>) -> Void
+    )
 }
 
 extension APIService {
 
-    private func fallback(_ fallback: APIService) -> APIService {
-        APIServiceWithFallback(primary: self, fallback: fallback)
-    }
+    var errorValidatorLogic: (TwirpError) -> Bool {
+        return { error in
+            guard case let .dataTaskError(error) = error,
+                       let urlError = error as? URLError
+            else { return true }
 
-    func retriableClient(with retryCount: UInt) -> APIService {
-        var service: APIService = self
-        for _ in 0..<retryCount {
-            service = service.fallback(self)
-        }
-        return service
-    }
-}
-
-struct APIServiceWithFallback: APIService {
-
-    var primary: APIService
-    var fallback: APIService
-
-    func request(with request: URLRequest, completion: @escaping (Result<(Data, HTTPURLResponse), TwirpError>) -> Void) {
-        primary.request(with: request) { result in
-
-            switch result {
-            case .success:
-                completion(result)
-            case .failure:
-                fallback.request(with: request, completion: completion)
+            switch urlError.code {
+                // Retry on network errors
+            case .networkConnectionLost,.timedOut, .cannotFindHost, .cannotConnectToHost, .secureConnectionFailed, .notConnectedToInternet, .cannotLoadFromNetwork, .dataNotAllowed, .resourceUnavailable:
+                return true
+            default:
+                // Do not retry on other errors
+                return false
             }
         }
     }
 }
 
-public class APIClient: APIService {
+final class APIClient: APIService {
 
     private let session = URLSession.shared
 
-    public init() {}
+    public func request(
+        with request: URLRequest,
+        maxRetries: UInt,
+        retryDelay: TimeInterval,
+        completion: @escaping (Result<(Data, HTTPURLResponse), TwirpError>) -> Void
+    ) {
+        let retry: ((TwirpError) -> Bool, TwirpError, UInt) -> TimeInterval? = { errorValidator, error, retryCount in
+            guard errorValidator(error) else { return nil }
 
-    public func request<T: Message>(with request: URLRequest, completion: @escaping (Result<T, TwirpError>) -> Void) {
+            return retryCount > .zero ? pow(Constant.delayMultiplier, Double(retryCount)) * retryDelay : nil
+        }
 
-        let task = session.dataTask(with: request) { data, response, error in
-            DispatchQueue.main.async {
-                guard error == nil else {
-                    completion(.failure(.message(error?.localizedDescription)))
-                    return
-                }
+        let localLogicCopy = errorValidatorLogic
 
-                guard let data, !data.isEmpty else {
-                    completion(.failure(.noData))
-                    return
-                }
-
-                guard let httpResponse = response as? HTTPURLResponse else {
-                    completion(.failure(.invalidHTTPResponse))
-                    return
-                }
-
-                do {
-                    if (200...299).contains(httpResponse.statusCode) {
-                        if httpResponse.hasProtobufHeaders {
-                            let responseObject = try T(serializedData: data)
-                            completion(.success(responseObject))
-                        } else {
-                            let responseObject = try T(jsonUTF8Data: data)
-                            completion(.success(responseObject))
-                        }
-
-                    } else {
-                        let twirpError = try JSONDecoder().decode(ErrorResponse.self, from: data)
-                        completion(.failure(.error(code: httpResponse.statusCode, errorObject: twirpError)))
+        self.request(with: request) { [weak self] result in
+            switch result {
+            case .success:
+                completion(result)
+            case .failure(let error):
+                if let delay = retry(localLogicCopy, error, maxRetries) {
+                    DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
+                        self?.request(
+                            with: request,
+                            maxRetries: maxRetries - 1,
+                            retryDelay: retryDelay,
+                            completion: completion)
                     }
-                } catch {
-                    completion(.failure(.decodingError))
+                } else {
+                    completion(result)
                 }
             }
         }
     }
 
-    public func request(with request: URLRequest, completion: @escaping (Result<(Data, HTTPURLResponse), TwirpError>) -> Void) {
-
+    func request(
+        with request: URLRequest,
+        completion: @escaping (Result<(Data, HTTPURLResponse), TwirpError>) -> Void
+    ) {
         let task = session.dataTask(with: request) { data, response, error in
             DispatchQueue.main.async {
-                guard error == nil else {
-                    completion(.failure(.message(error?.localizedDescription)))
+                if let error = error {
+                    completion(.failure(.dataTaskError(error)))
                     return
                 }
 
@@ -119,26 +105,9 @@ public class APIClient: APIService {
     }
 }
 
+private extension APIClient {
 
-struct APIClientMapper {
-
-    static func map<T: Message>(_ data: Data, from httpResponse: HTTPURLResponse, completion: @escaping (Result<T, TwirpError>) -> Void) {
-        do {
-            if (200...299).contains(httpResponse.statusCode) {
-                if httpResponse.hasProtobufHeaders {
-                    let responseObject = try T(serializedData: data)
-                    completion(.success(responseObject))
-                } else {
-                    let responseObject = try T(jsonUTF8Data: data)
-                    completion(.success(responseObject))
-                }
-
-            } else {
-                let twirpError = try JSONDecoder().decode(ErrorResponse.self, from: data)
-                completion(.failure(.error(code: httpResponse.statusCode, errorObject: twirpError)))
-            }
-        } catch {
-            completion(.failure(.decodingError))
-        }
+    enum Constant {
+        static let delayMultiplier = 2.0
     }
 }
