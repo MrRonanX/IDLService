@@ -20,7 +20,7 @@ protocol APIService {
 
 extension APIService {
 
-    var errorValidatorLogic: (TwirpError) -> Bool {
+    private var validError: (TwirpError) -> Bool {
         return { error in
             guard case let .dataTaskError(error) = error,
                        let urlError = error as? URLError
@@ -36,6 +36,13 @@ extension APIService {
             }
         }
     }
+
+    func shouldRetry(after error: TwirpError, maxRetries: UInt, retryDelay: TimeInterval) -> TimeInterval? {
+        guard validError(error) else { return nil }
+
+        let delayMultiplier = 2.0
+        return maxRetries > .zero ? pow(delayMultiplier, Double(maxRetries)) * retryDelay : nil
+    }
 }
 
 final class APIClient: APIService {
@@ -48,22 +55,17 @@ final class APIClient: APIService {
         retryDelay: TimeInterval,
         completion: @escaping (Result<(Data, HTTPURLResponse), TwirpError>) -> Void
     ) {
-        let retry: ((TwirpError) -> Bool, TwirpError, UInt) -> TimeInterval? = { errorValidator, error, retryCount in
-            guard errorValidator(error) else { return nil }
-
-            return retryCount > .zero ? pow(Constant.delayMultiplier, Double(retryCount)) * retryDelay : nil
-        }
-
-        let localLogicCopy = errorValidatorLogic
 
         self.request(with: request) { [weak self] result in
+            guard let self else { return }
+
             switch result {
             case .success:
                 completion(result)
             case .failure(let error):
-                if let delay = retry(localLogicCopy, error, maxRetries) {
+                if let delay = self.shouldRetry(after: error, maxRetries: maxRetries, retryDelay: retryDelay) {
                     DispatchQueue.global().asyncAfter(deadline: .now() + delay) {
-                        self?.request(
+                        self.request(
                             with: request,
                             maxRetries: maxRetries - 1,
                             retryDelay: retryDelay,
@@ -102,12 +104,5 @@ final class APIClient: APIService {
         }
 
         task.resume()
-    }
-}
-
-private extension APIClient {
-
-    enum Constant {
-        static let delayMultiplier = 2.0
     }
 }

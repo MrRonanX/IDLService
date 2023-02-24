@@ -24,7 +24,6 @@ struct APIClientMapper {
                     let responseObject = try T(jsonUTF8Data: data)
                     completion(.success(responseObject))
                 }
-
             } else {
                 let twirpError = try JSONDecoder().decode(ErrorResponse.self, from: data)
                 completion(.failure(.error(code: httpResponse.statusCode, errorObject: twirpError)))

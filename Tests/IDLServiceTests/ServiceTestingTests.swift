@@ -15,7 +15,6 @@ final class IDLServiceTests: XCTestCase {
     func test_load_once() {
         // Given
         let (sut, client) = createSUT()
-        client.result = .failure(.dataTaskError(URLError(.timedOut)))
 
         // When
         sut.ListThemes(request: Chesscom_Themes_V1alpha_ListThemesRequest()) { _ in }
@@ -25,10 +24,9 @@ final class IDLServiceTests: XCTestCase {
         XCTAssertEqual(client.retryCount, 0)
     }
 
-    func test_load_twice() {
+    func test_load_retryOnce() {
         // Given
         let (sut, client) = createSUT()
-        client.result = .failure(.dataTaskError(URLError(.timedOut)))
 
         // When
         sut.ListThemes(request: Chesscom_Themes_V1alpha_ListThemesRequest(), retryTimes: 1) { _ in }
@@ -38,10 +36,9 @@ final class IDLServiceTests: XCTestCase {
         XCTAssertEqual(client.retryCount, 1)
     }
 
-    func test_load_5Times() {
+    func test_load_retry4Times() {
         // Given
         let (sut, client) = createSUT()
-        client.result = .failure(.dataTaskError(URLError(.timedOut)))
 
         // When
         sut.ListThemes(request: Chesscom_Themes_V1alpha_ListThemesRequest(), retryTimes: 4) { _ in }
@@ -49,6 +46,16 @@ final class IDLServiceTests: XCTestCase {
 
         // Then
         XCTAssertEqual(client.retryCount, 4)
+    }
+
+    func test_load_doesNotRetryOnInvalidError() {
+        let (sut, client) = createSUT()
+        client.result = .failure(.dataTaskError(URLError(.badURL)))
+
+        sut.ListThemes(request: Chesscom_Themes_V1alpha_ListThemesRequest(), retryTimes: 4) { _ in }
+        client.complete(with: .decodingError)
+
+        XCTAssertEqual(client.retryCount, 0)
     }
 
     func test_load_doesNotDeliverResultAfterSUTInstanceHasBeenDeallocated() {
@@ -75,7 +82,7 @@ final class IDLServiceTests: XCTestCase {
             expectation.fulfill()
         }
 
-        waitForExpectations(timeout: 4)
+        waitForExpectations(timeout: 10)
         evaluateCapturedResult(capturedResult)
     }
 
@@ -94,15 +101,6 @@ final class IDLServiceTests: XCTestCase {
         case .failure: XCTFail("Request failed")
         }
     }
-
-    var listThemesRequest: Chesscom_Themes_V1alpha_ListThemesRequest {
-        var request = Chesscom_Themes_V1alpha_ListThemesRequest()
-        request.platform = .iphone
-        request.boardSize = 150
-        request.piecesSize = 12
-
-        return request
-    }
 }
 
 // MARK: - Helpers
@@ -114,6 +112,7 @@ extension IDLServiceTests {
     ) -> (sut: ThemesServiceClient, client: APIServiceStub) {
         let client = APIServiceStub()
         let sut = ThemesServiceClient(baseURL: "https://www.chess-4.com", client: client)
+        client.result = .failure(.dataTaskError(URLError(.timedOut)))
 
         trackForMemoryLeaks(client, file: file, line: line)
         trackForMemoryLeaks(sut)
@@ -131,6 +130,15 @@ extension IDLServiceTests {
         }
     }
 
+    var listThemesRequest: Chesscom_Themes_V1alpha_ListThemesRequest {
+        var request = Chesscom_Themes_V1alpha_ListThemesRequest()
+        request.platform = .iphone
+        request.boardSize = 150
+        request.piecesSize = 12
+
+        return request
+    }
+
     class APIServiceStub: APIService {
 
         private var requestURLs: [URL] { requests.map { $0.url }}
@@ -145,21 +153,13 @@ extension IDLServiceTests {
             retryDelay: TimeInterval,
             completion: @escaping (Result<(Data, HTTPURLResponse), TwirpError>) -> Void
         ) {
-            let retry: ((TwirpError) -> Bool, TwirpError, UInt) -> TimeInterval? = { errorValidator, error, retryCount in
-                guard errorValidator(error) else { return nil }
-
-                return retryCount > .zero ? pow(2.0, Double(retryCount)) * retryDelay : nil
-            }
-
             guard let result else { return }
-
-            let localLogicCopy = errorValidatorLogic
 
             switch result {
             case .success:
                 requests.append((request.url!, completion))
             case .failure(let error):
-                if let _ = retry(localLogicCopy, error, maxRetries) {
+                if let _ = shouldRetry(after: error, maxRetries: maxRetries, retryDelay: retryDelay) {
                     self.request(
                         with: request,
                         maxRetries: maxRetries - 1,
