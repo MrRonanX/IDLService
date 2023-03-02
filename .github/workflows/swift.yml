@@ -24,4 +24,4 @@ jobs:
 
   pubslish-arrifact:
     name: 🏆 Publish Artifact
-    uses: .github/workflows/main.yml
+    uses: ./.github/workflows/main.yml
