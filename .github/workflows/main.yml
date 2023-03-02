@@ -6,8 +6,13 @@ jobs:
   build-and-publish:
     runs-on: macos-latest
     steps:
+    
+      - name: Archive Build
+        run: |
+          tar -zcvf /tmp/build.tar.gz build
+          
       - name: Publish Artifact
         uses: actions/upload-artifact@v3
         with:
           name: TestingArtifact.tar.gz
-          path: ./tmp/target-proto.tar.gz
+          path: ./tmp/build.tar.gz
