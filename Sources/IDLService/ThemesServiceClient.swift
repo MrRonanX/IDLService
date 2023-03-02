@@ -16,12 +16,12 @@ public final class ThemesServiceClient {
     private var requestConstructor: RequestConstructor
     private var client: APIService
 
-    convenience public init(baseURLString: String) {
-        self.init(baseURL: baseURLString)
+    convenience public init(baseURL: String) {
+        self.init(baseURLString: baseURL)
     }
 
-    init(baseURL: String, client: APIService = APIClient()) {
-        self.requestConstructor = RequestConstructor(url: baseURL, router: .themes)
+    init(baseURLString: String, client: APIService = APIClient()) {
+        self.requestConstructor = RequestConstructor(url: baseURLString, router: .themes)
         self.client = client
     }
 

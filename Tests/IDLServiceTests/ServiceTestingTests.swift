@@ -60,7 +60,7 @@ final class IDLServiceTests: XCTestCase {
 
     func test_load_doesNotDeliverResultAfterSUTInstanceHasBeenDeallocated() {
         let client = APIServiceStub()
-        var sut: ThemesServiceClient? = ThemesServiceClient(baseURL: "https://www.chess-4.com", client: client)
+        var sut: ThemesServiceClient? = ThemesServiceClient(baseURLString: "https://www.chess-4.com", client: client)
         client.result = .failure(.dataTaskError(URLError(.timedOut)))
 
         var capturedResults = [ThemesServiceClient.ListThemesResponseResult]()
@@ -111,7 +111,7 @@ extension IDLServiceTests {
         line: UInt = #line
     ) -> (sut: ThemesServiceClient, client: APIServiceStub) {
         let client = APIServiceStub()
-        let sut = ThemesServiceClient(baseURL: "https://www.chess-4.com", client: client)
+        let sut = ThemesServiceClient(baseURLString: "https://www.chess-4.com", client: client)
         client.result = .failure(.dataTaskError(URLError(.timedOut)))
 
         trackForMemoryLeaks(client, file: file, line: line)
