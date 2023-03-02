@@ -22,6 +22,6 @@ jobs:
       run: swift test -v
 
 
- pubslish-arrifact:
-   name: 🏆 Publish Artifact
-   uses: .github/workflows/main.yml
+  pubslish-arrifact:
+    name: 🏆 Publish Artifact
+    uses: .github/workflows/main.yml
