@@ -9,5 +9,5 @@ jobs:
       - name: Publish Artifact
         uses: actions/upload-artifact@v3
         with:
-          name: <TestingArtifact>
-          path: </>
+          name: TestingArtifact.tar.gz
+          path: ./tmp/target-proto.tar.gz
