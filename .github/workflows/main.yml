@@ -1,0 +1,13 @@
+name: 🏆 Publish Artifact
+on:
+  workflow_call:
+    inputs: {}
+jobs:
+  build-and-publish:
+    runs-on: macos-latest
+    steps:
+      - name: Publish Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: <TestingArtifact>
+          path: </>
