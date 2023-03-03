@@ -8,6 +8,10 @@ on:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+  outputs:
+      artifact_name:
+        value: "build-artifact.tar.gz"
+        description: "Artifact containing the built project"
 
 jobs:
   build:
