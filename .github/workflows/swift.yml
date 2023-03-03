@@ -20,8 +20,11 @@ jobs:
       run: swift build -v
     - name: Run tests
       run: swift test -v
+    - name: Archive Build
+      run: tar czf build.tar.gz .build
 
-
-  pubslish-arrifact:
-    name: 🏆 Publish Artifact
-    uses: ./.github/workflows/main.yml
+    - name: Publish Artifact
+      uses: actions/upload-artifact@v3.1.2
+      with:
+        name: build-artifact
+        path: build.tar.gz
