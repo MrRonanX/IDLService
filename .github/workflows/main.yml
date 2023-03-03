@@ -8,11 +8,10 @@ jobs:
     steps:
     
       - name: Archive Build
-        run: |
-          tar -zcvf /tmp/build.tar.gz build
+        run: tar czf myPackage.tar.gz .build
           
       - name: Publish Artifact
         uses: actions/upload-artifact@v3
         with:
           name: TestingArtifact.tar.gz
-          path: ./tmp/build.tar.gz
+          path: build.tar.gz
