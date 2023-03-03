@@ -11,9 +11,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
-          name: build-artifact.tar.gz
+          name: build-artifact
 
       - name: Extract Artifact
         run: tar -xzf build-artifact.tar.gz
