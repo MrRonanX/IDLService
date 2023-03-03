@@ -1,0 +1,32 @@
+name: Artifact Unwrap and Copy
+
+on:
+  workflow_run:
+    workflows: ["🧱 Build And Test"]
+    types:
+      - completed
+
+jobs:
+  unwrap-and-copy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifact
+        uses: actions/download-artifact@v2
+        with:
+          name: build-artifact.tar.gz
+
+      - name: Extract Artifact
+        run: tar -xzf build-artifact.tar.gz
+
+      - name: Copy Cache
+        run: |
+          cp -R .build/plugins/cache /github/workspace/WorkflowTest
+
+      - name: Commit and Push
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Update WorkflowTest cache"
+          file_pattern: WorkflowTest/**
+          branch: test
+          commit_user_email: your-email@example.com
+          commit_user_name: "Your Name"
