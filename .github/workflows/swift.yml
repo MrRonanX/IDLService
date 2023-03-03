@@ -26,6 +26,6 @@ jobs:
     - name: Publish Artifact
       uses: actions/upload-artifact@v3.1.2
       with:
-        name: build-artifact
+        name: build-artifact.tar.gz
         path: .build
         retention-days: 1
