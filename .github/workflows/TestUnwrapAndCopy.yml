@@ -16,7 +16,7 @@ jobs:
           name: build-artifact
 
       - name: Extract Artifact
-        run: tar -xzf build-artifact.tar.gz
+        run: tar -xzf build-artifact
 
       - name: Copy Cache
         run: |
