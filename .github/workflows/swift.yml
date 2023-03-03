@@ -27,4 +27,4 @@ jobs:
       uses: actions/upload-artifact@v3.1.2
       with:
         name: build-artifact
-        path: build.tar.gz
+        path: .build
