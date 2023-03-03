@@ -11,9 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Download Artifact
-        uses: actions/download-artifact@v3
+        uses: dawidd6/action-download-artifact@v2
         with:
-          name: build-artifact
+          workflow: swift.yml
+          workflow_conclusion: success
 
       - name: Extract Artifact
         run: tar -xzf build-artifact
